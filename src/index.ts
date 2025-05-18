@@ -369,67 +369,70 @@ export default class CanvasSelect extends EventBus {
                             this.activeShape.coor.push([nx, ny]);
                         }
                     }
-                } else if (this.createType !== Shape.None && !this.readonly && !this.isCtrlKey) { // 开始创建
+                } else if (!this.isCtrlKey) {
                     this.activeShape.active = false;
                     this.dataset.sort((a, b) => a.index - b.index);
                     this.emit('select', null);
                 } else {
-                    // 是否点击到形状
-                    const [hitShapeIndex, hitShape] = this.hitOnShape(this.mouse);
-                    if (hitShapeIndex > -1 && hitShape) {
-                        hitShape.dragging = true;
-                        this.dataset.forEach((item, i) => item.active = i === hitShapeIndex);
-                        this.dataset.splice(hitShapeIndex, 1);
-                        this.dataset.push(hitShape);
-                        if (!this.readonly) {
-                            this.remmber = [];
-                            if ([Shape.Dot, Shape.Circle].includes(hitShape.type)) {
-                                const [x, y] = hitShape.coor;
-                                this.remmber = [[offsetX - x, offsetY - y]];
-                            } else {
-                                hitShape.coor.forEach((pt: any) => {
-                                    this.remmber.push([offsetX - pt[0], offsetY - pt[1]]);
-                                });
+                    if (this.createType !== Shape.None && !this.readonly) {
+                        // 是否点击到形状
+                        const [hitShapeIndex, hitShape] = this.hitOnShape(this.mouse);
+                        if (hitShapeIndex > -1 && hitShape) {
+                            hitShape.dragging = true;
+                            this.dataset.forEach((item, i) => item.active = i === hitShapeIndex);
+                            this.dataset.splice(hitShapeIndex, 1);
+                            this.dataset.push(hitShape);
+                            if (!this.readonly) {
+                                this.remmber = [];
+                                if ([Shape.Dot, Shape.Circle].includes(hitShape.type)) {
+                                    const [x, y] = hitShape.coor;
+                                    this.remmber = [[offsetX - x, offsetY - y]];
+                                } else {
+                                    hitShape.coor.forEach((pt: any) => {
+                                        this.remmber.push([offsetX - pt[0], offsetY - pt[1]]);
+                                    });
+                                }
                             }
-                        }
-                        this.emit('select', hitShape);
-                    } else {
-                        let newShape;
-                        const nx = Math.round(offsetX - this.originX / this.scale);
-                        const ny = Math.round(offsetY - this.originY / this.scale);
-                        const curPoint: Point = [nx, ny];
-                        switch (this.createType) {
-                            case Shape.Rect:
-                                newShape = new Rect({ coor: [curPoint, curPoint] }, this.dataset.length);
-                                newShape.creating = true;
-                                break;
-                            case Shape.Polygon:
-                                newShape = new Polygon({ coor: [curPoint] }, this.dataset.length);
-                                newShape.creating = true;
-                                break;
-                            case Shape.Dot:
-                                newShape = new Dot({ coor: curPoint }, this.dataset.length);
-                                this.emit('add', newShape);
-                                break;
-                            case Shape.Line:
-                                newShape = new Line({ coor: [curPoint] }, this.dataset.length);
-                                newShape.creating = true;
-                                break;
-                            case Shape.Circle:
-                                newShape = new Circle({ coor: curPoint }, this.dataset.length);
-                                newShape.creating = true;
-                                break;
-                            case Shape.Grid:
-                                newShape = new Grid({ coor: [curPoint, curPoint] }, this.dataset.length);
-                                newShape.creating = true;
-                                break;
-                            default:
-                                break;
-                        }
-                        if (newShape) {
-                            this.dataset.forEach((sp) => { sp.active = false; });
-                            newShape.active = true;
-                            this.dataset.push(newShape);
+                            this.emit('select', hitShape);
+                        } else {
+                            // 开始创建
+                            let newShape;
+                            const nx = Math.round(offsetX - this.originX / this.scale);
+                            const ny = Math.round(offsetY - this.originY / this.scale);
+                            const curPoint: Point = [nx, ny];
+                            switch (this.createType) {
+                                case Shape.Rect:
+                                    newShape = new Rect({ coor: [curPoint, curPoint] }, this.dataset.length);
+                                    newShape.creating = true;
+                                    break;
+                                case Shape.Polygon:
+                                    newShape = new Polygon({ coor: [curPoint] }, this.dataset.length);
+                                    newShape.creating = true;
+                                    break;
+                                case Shape.Dot:
+                                    newShape = new Dot({ coor: curPoint }, this.dataset.length);
+                                    this.emit('add', newShape);
+                                    break;
+                                case Shape.Line:
+                                    newShape = new Line({ coor: [curPoint] }, this.dataset.length);
+                                    newShape.creating = true;
+                                    break;
+                                case Shape.Circle:
+                                    newShape = new Circle({ coor: curPoint }, this.dataset.length);
+                                    newShape.creating = true;
+                                    break;
+                                case Shape.Grid:
+                                    newShape = new Grid({ coor: [curPoint, curPoint] }, this.dataset.length);
+                                    newShape.creating = true;
+                                    break;
+                                default:
+                                    break;
+                            }
+                            if (newShape) {
+                                this.dataset.forEach((sp) => { sp.active = false; });
+                                newShape.active = true;
+                                this.dataset.push(newShape);
+                            }
                         }
                     }
                 }
@@ -753,12 +756,24 @@ export default class CanvasSelect extends EventBus {
     setData(data: AllShape[]) {
         setTimeout(() => {
             const initdata: AllShape[] = [];
+            const loadPromises: Promise<void>[] = [];
             data.forEach((item, index) => {
                 if (Object.prototype.toString.call(item).includes('Object')) {
                     let shape: any;
                     switch (item.type) {
                         case Shape.Rect:
                             shape = new Rect(item, index);
+                            if (shape.icon) {
+                                const img = new Image();
+                                img.src = shape.icon;
+                                loadPromises.push(new Promise((resolve, reject) => {
+                                  img.onload = () => {
+                                    shape.iconImage = img;
+                                    resolve();
+                                  };
+                                  img.onerror = () => reject(`Failed to load icon: ${shape.icon}`);
+                                }));
+                              }
                             break;
                         case Shape.Polygon:
                             shape = new Polygon(item, index);
@@ -784,8 +799,11 @@ export default class CanvasSelect extends EventBus {
                     console.warn('Shape must be an enumerable Object.', item);
                 }
             });
-            this.dataset = initdata;
-            this.update();
+            Promise.all(loadPromises)
+            .then(() => {
+                this.dataset = initdata;
+                this.update();
+            })
         });
     }
 
@@ -933,6 +951,13 @@ export default class CanvasSelect extends EventBus {
         const h = y1 - y0;
         if (!creating) this.ctx.fillRect(x0, y0, w, h);
         this.ctx.strokeRect(x0, y0, w, h);
+        if (shape.iconImage?.complete) {
+            const iconSize = h; // 图标大小
+            const spacing = 5;
+            const centerX = x1 + spacing;
+            const centerY = y0;
+            this.ctx.drawImage(shape.iconImage, centerX, centerY, iconSize, iconSize);
+        }
         this.ctx.restore();
         this.drawLabel(coor[0], shape);
     }

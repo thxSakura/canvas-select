@@ -1,9 +1,16 @@
-import Shape from './Shape';
+import Shape from "./Shape";
 
 export default class Rect extends Shape {
-  public type = 1
+  public icon?: string;
+  public iconImage?: HTMLImageElement;
+  public type = 1;
   constructor(item: any, index: number) {
-    super(item, index)
+    super(item, index);
+    this.icon = item.icon;
+    if (this.icon) {
+      this.iconImage = new Image();
+      this.iconImage.src = this.icon;
+    }
   }
   get ctrlsData() {
     const [[x0, y0], [x1, y1]] = this.coor;
