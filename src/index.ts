@@ -133,6 +133,8 @@ export default class CanvasSelect extends EventBus {
     gridMenuEnable = true;
     /** 网格选中背景填充颜色 */
     gridSelectedFillStyle = 'rgba(255, 255, 0, 0.6)';
+    /** 矩形框包裹的文字平均高度 */
+    fontMedianHeight = 0;
     /**
      * @param el Valid CSS selector string, or DOM
      * @param src image src
@@ -952,7 +954,7 @@ export default class CanvasSelect extends EventBus {
         if (!creating) this.ctx.fillRect(x0, y0, w, h);
         this.ctx.strokeRect(x0, y0, w, h);
         if (shape.iconImage?.complete) {
-            const iconSize = h; // 图标大小
+            const iconSize = Math.round(this.fontMedianHeight * this.scale); // 图标大小
             const spacing = 5;
             const centerX = x1 + spacing;
             const centerY = y0;
