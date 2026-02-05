@@ -87,6 +87,8 @@ export default class CanvasSelect extends EventBus {
     mouse: Point = [0, 0];
     /** 记录背景图鼠标位移 */
     remmberOrigin: number[] = [0, 0];
+    /** 鼠标是否按下 */
+    isMouseDown = false;
     /** 0 不创建，1 矩形，2 多边形，3 点，4 折线，5 圆，6 网格 */
     createType: Shape = Shape.None; //
     /** 控制点索引 */
@@ -347,6 +349,7 @@ export default class CanvasSelect extends EventBus {
     private handleMouseDown(e: MouseEvent | TouchEvent) {
         e.stopPropagation();
         if (this.lock) return;
+        this.isMouseDown = true;
         const { mouseX, mouseY, mouseCX, mouseCY } = this.mergeEvent(e);
         const offsetX = Math.round(mouseX / this.scale);
         const offsetY = Math.round(mouseY / this.scale);
@@ -464,7 +467,7 @@ export default class CanvasSelect extends EventBus {
         const offsetX = Math.round(mouseX / this.scale);
         const offsetY = Math.round(mouseY / this.scale);
         this.mouse = this.isMobile && (e as TouchEvent).touches?.length === 2 ? [mouseCX, mouseCY] : [mouseX, mouseY];
-        if (((!this.isMobile && (e as MouseEvent).buttons === 1) && this.isCtrlKey || (this.isMobile && (e as TouchEvent).touches?.length === 1)) && this.activeShape.type) {
+        if (((!this.isMobile && (e as MouseEvent).buttons === 1 && this.isMouseDown) && this.isCtrlKey || (this.isMobile && (e as TouchEvent).touches?.length === 1)) && this.activeShape.type) {
             if (this.ctrlIndex > -1 && this.remmber.length && (this.isInBackground(e) || this.activeShape.type === Shape.Circle)) {
                 const [[x, y]] = this.remmber;
                 // resize矩形
@@ -584,7 +587,7 @@ export default class CanvasSelect extends EventBus {
         } else if ([Shape.Polygon, Shape.Line].includes(this.activeShape.type) && this.activeShape.creating) {
             // 多边形添加点
             this.update();
-        } else if ((!this.isMobile && (e as MouseEvent).buttons === 1 && !this.isCtrlKey) || (this.isMobile && (e as TouchEvent).touches?.length === 1 && !this.isTouch2)) {
+        } else if ((!this.isMobile && (e as MouseEvent).buttons === 1 && this.isMouseDown && !this.isCtrlKey) || (this.isMobile && (e as TouchEvent).touches?.length === 1 && !this.isTouch2)) {
             // 拖动背景
             this.originX = Math.round(mouseX - this.remmberOrigin[0]);
             this.originY = Math.round(mouseY - this.remmberOrigin[1]);
@@ -600,6 +603,8 @@ export default class CanvasSelect extends EventBus {
     }
 
     private handleMouseUp(e: MouseEvent | TouchEvent) {
+        if (!this.isMouseDown) return;
+        this.isMouseDown = false;
         e.stopPropagation();
         if (this.lock) return;
         // 鼠标抬起则卸载放大器
@@ -720,14 +725,14 @@ export default class CanvasSelect extends EventBus {
         this.image.addEventListener('load', this.handleLoad);
         this.canvas.addEventListener('touchstart', this.handleMouseDown);
         this.canvas.addEventListener('touchmove', this.handleMouseMove);
-        this.canvas.addEventListener('touchend', this.handleMouseUp);
+        window.addEventListener('touchend', this.handleMouseUp);
         this.canvas.addEventListener('contextmenu', this.handleContextmenu);
         // @ts-ignore
         this.canvas.addEventListener('mousewheel', this.handleMousewheel);
         this.canvas.addEventListener('wheel', this.handleMousewheel);
         this.canvas.addEventListener('mousedown', this.handleMouseDown);
         this.canvas.addEventListener('mousemove', this.handleMouseMove);
-        this.canvas.addEventListener('mouseup', this.handleMouseUp);
+        window.addEventListener('mouseup', this.handleMouseUp);
         this.canvas.addEventListener('dblclick', this.handleDblclick);
         document.body.addEventListener('keydown', this.handleKeydown, true);
         document.body.addEventListener('keyup', this.handleKeyup, true);
@@ -1326,11 +1331,11 @@ export default class CanvasSelect extends EventBus {
         this.canvas.removeEventListener('mousewheel', this.handleMousewheel);
         this.canvas.removeEventListener('wheel', this.handleMousewheel);
         this.canvas.removeEventListener('mousedown', this.handleMouseDown);
-        this.canvas.removeEventListener('touchend', this.handleMouseDown);
+        this.canvas.removeEventListener('touchstart', this.handleMouseDown);
         this.canvas.removeEventListener('mousemove', this.handleMouseMove);
         this.canvas.removeEventListener('touchmove', this.handleMouseMove);
-        this.canvas.removeEventListener('mouseup', this.handleMouseUp);
-        this.canvas.removeEventListener('touchend', this.handleMouseUp);
+        window.removeEventListener('mouseup', this.handleMouseUp);
+        window.removeEventListener('touchend', this.handleMouseUp);
         this.canvas.removeEventListener('dblclick', this.handleDblclick);
         document.body.removeEventListener('keydown', this.handleKeydown, true);
         document.body.removeEventListener('keyup', this.handleKeyup, true);
